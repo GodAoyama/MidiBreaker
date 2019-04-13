@@ -17,7 +17,7 @@ namespace ConsoleApp2
         static void Main(string[] args)
         {
             //ファイル名
-            var midi = "summer(pf+quartet)";
+            var midi = "_summer(pf+quartet)";
             //ファイルひらく
             var fileName = @"C:\Users\saku_\Desktop\DeskTap-master\sakurai\" + midi + ".mid";
             var br = new BinaryReader(new FileStream(fileName, FileMode.Open));
@@ -101,7 +101,6 @@ namespace ConsoleApp2
                     }
                     else if (order[0] == '9')//音再生　9* = *チャンネルで音を出す
                     {
-                        if (!data.Any()) DT = 0;//最初の音をdeltaTime=0にする
                         var sound = MidiRead(br, 2);//(sound[0],sound[1])=(音階,音量)
                         if (GetInt(sound[1]) != 0)//音量ゼロでなければ
                         {
@@ -160,7 +159,6 @@ namespace ConsoleApp2
                     }
                     else if (order[0] == '9')//音再生　9* = *チャンネルで音を出す
                     {
-                        if (!data.Any()) DT = 0;//最初の音をdeltaTime=0にする
                         var sound = MidiRead(br, 1);//(sound[0],sound[1])=(音階,音量)
                         if (GetInt(sound[0]) != 0)//音量ゼロでなければ
                         {
