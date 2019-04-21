@@ -17,7 +17,7 @@ namespace ConsoleApp2
         static void Main(string[] args)
         {
             //ファイル名
-            var midi = "_summer(pf+quartet)";
+            var midi = "hanabi";
             //ファイルひらく
             var fileName = @"C:\Users\saku_\Desktop\DeskTap-master\sakurai\" + midi + ".mid";
             var br = new BinaryReader(new FileStream(fileName, FileMode.Open));
@@ -104,10 +104,10 @@ namespace ConsoleApp2
                         var sound = MidiRead(br, 2);//(sound[0],sound[1])=(音階,音量)
                         if (GetInt(sound[1]) != 0)//音量ゼロでなければ
                         {
-                            //data[0-3]=(チャンネル, DeltaTime, 音階, null(後で音符情報入れる,音量)
-                            data.Add(new string[5] { GetInt(order[1].ToString()).ToString(),
+                            //data[0-3]=(チャンネル, DeltaTime, 音階, null(後で音符情報入れる,音量,当時のusec)
+                            data.Add(new string[6] { GetInt(order[1].ToString()).ToString(),
                             DT.ToString(), notes[GetInt(sound[0]) % 12] + (GetInt(sound[0]) / 12 - 1).ToString(),
-                            "0", sound[1]});
+                            "0", sound[1],usec.ToString()});
                             //DT = 0;※仕様変更
                         }
                         else//音量ゼロなら音符情報を加える
@@ -122,15 +122,36 @@ namespace ConsoleApp2
                             }
                         }
                     }
-                    else//8* ** **, A* ** **, B* ** **, C* **, D* **, E* ** **の処理
+                    else//8* ** **, A* ** **, B* ** **, C* **, D* **, E* ** **,F0 or F7の処理
                     {
-                        if (order[0] == 'C' || order[0] == 'D')
+                        if (order[0] == '8')
+                        {
+                            var sound = MidiRead(br, 2);//(sound[0],sound[1])=(音階,音量)
+
+                            for (int i = data.Count() - 1; i >= 0; i--)
+                            {
+                                if (data[i][3] == "0" && data[i][2] == notes[GetInt(sound[0]) % 12] + (GetInt(sound[0]) / 12 - 1).ToString())//音符長さ情報なし　かつ　音階一致
+                                {
+                                    data[i][3] = DT.ToString();
+                                    break;
+                                }
+                            }
+                        }
+                        else if (order[0] == 'C' || order[0] == 'D')
                         {
                             var sL = MidiRead(br, 1);
                             if (order[0] == 'C')
                             {
                                 string temp = "0" + order[1].ToString();
                                 inst[GetInt(temp)] = GetInt(sL[0]);
+                            }
+                        }
+                        else if (order[0] == 'F' && order[1] == '0')
+                        {
+                            var sysEx = MidiRead(br, 1);
+                            while (!(sysEx[0] == "F7"))
+                            {
+                                sysEx = MidiRead(br, 1);
                             }
                         }
                         else MidiRead(br, 2);
@@ -163,22 +184,33 @@ namespace ConsoleApp2
                         if (GetInt(sound[0]) != 0)//音量ゼロでなければ
                         {
                             //data[0-2]=(チャンネル, DeltaTime, 音階)
-                            data.Add(new string[5] { GetInt(order[1].ToString()).ToString(),
+                            data.Add(new string[6] { GetInt(order[1].ToString()).ToString(),
                             DT.ToString(), notes[GetInt(next) % 12] + (GetInt(next) / 12 - 1).ToString(),
-                            "0",sound[0]});
+                            "0",sound[0],usec.ToString()});
                             //DT = 0;※仕様変更
                         }
                         else//音量ゼロなら音符情報を加える
                         {
                             for (int i = data.Count() - 1; i >= 0; i--)
                             {
-                                if (data[i][3] == string.Empty && data[i][2] == "0")//音符長さ情報なし　かつ　音階一致
+                                if (data[i][3] == "0" && data[i][2] == notes[GetInt(next) % 12] + (GetInt(next) / 12 - 1).ToString())//音符長さ情報なし　かつ　音階一致
                                 {
                                     data[i][3] = DT.ToString();
                                     break;
                                 }
                             }
                         }
+                        /* else//音量ゼロなら音符情報を加える
+                         {
+                             for (int i = data.Count() - 1; i >= 0; i--)
+                             {
+                                 if (data[i][3] == string.Empty && data[i][2] == "0")//音符長さ情報なし　かつ　音階一致
+                                 {
+                                     data[i][3] = DT.ToString();
+                                     break;
+                                 }
+                             }
+                         }バグ確認*/
                     }
                     else//8* ** **, A* ** **, B* ** **, C* **, D* **, E* ** **の処理
                     {
@@ -246,18 +278,25 @@ namespace ConsoleApp2
         }
         public static void WriteTimeAry(StreamWriter sw, List<string[]> data, int ch)
         {
+            const int OFFSET = 3771;
+            const double MULTIPLE = 1.007;
             int msec = 0;
             int count = 0;
             var list = new List<int>();
             sw.WriteLine("var melody_time_ary" + (ch + 1) + " = [");
+            int ruisekiTime = 0;
             for (int j = 0; j < data.Count(); j++)
             {
-                msec = (int)Math.Round(double.Parse(data[j][1]) / time * (usec / 1000));
-                if (data[j][0] == ch.ToString()) list.Add(msec);
+                //msec = (int)Math.Round(double.Parse(data[j][1]) / time * (double.Parse(data[j][5]) / 1000));
+                //if (data[j][0] == ch.ToString()) list.Add(msec);
+                if (j == 0) msec = 0;
+                else msec = (int)(Math.Round(double.Parse(data[j][1]) - double.Parse(data[j - 1][1])) / time * (usec*0.985/1.12/ 1000));
+                ruisekiTime += msec;
+                if (data[j][0] == ch.ToString()) list.Add((int)(ruisekiTime * MULTIPLE));
             }
             for (int i = 0; i < list.Count(); i++)
             {
-                sw.Write(list[i]);
+                sw.Write((list[i] - OFFSET));
                 if (i != list.Count() - 1) sw.Write(',');
                 count++;
                 if (count == 16)
@@ -324,7 +363,7 @@ namespace ConsoleApp2
                 usec += GetInt(MidiRead(br, 1)[0]) * (int)Math.Pow(256, num - 1);
                 num--;
             } while (num > 0);
-            Console.WriteLine("BPM:{0}",60*1000*1000/usec);
+            Console.WriteLine("BPM:{0}", 60.0 * 1000 * 1000 / usec);
         }
     }
 }
