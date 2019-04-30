@@ -17,7 +17,7 @@ namespace ConsoleApp2
         static void Main(string[] args)
         {
             //ファイル名
-            var midi = "hanabi";
+            var midi = "itumo";
             //ファイルひらく
             var fileName = @"C:\Users\saku_\Desktop\DeskTap-master\sakurai\" + midi + ".mid";
             var br = new BinaryReader(new FileStream(fileName, FileMode.Open));
@@ -278,8 +278,8 @@ namespace ConsoleApp2
         }
         public static void WriteTimeAry(StreamWriter sw, List<string[]> data, int ch)
         {
-            const int OFFSET = 3771;
-            const double MULTIPLE = 1.007;
+            const int OFFSET = 1712;
+            const double MULTIPLE = 0.731;//大きくするとゆっくりになる
             int msec = 0;
             int count = 0;
             var list = new List<int>();
